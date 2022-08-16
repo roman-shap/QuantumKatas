@@ -6,6 +6,8 @@ namespace Quantum.Kata.SimonsAlgorithm {
     open Microsoft.Quantum.Diagnostics;
     open Microsoft.Quantum.Intrinsic;
     open Microsoft.Quantum.Canon;
+    open Microsoft.Quantum.Measurement;
+    open Microsoft.Quantum.Arrays;
     
     
     //////////////////////////////////////////////////////////////////
@@ -30,9 +32,10 @@ namespace Quantum.Kata.SimonsAlgorithm {
     //      1) N qubits in an arbitrary state |x⟩
     //      2) a qubit in an arbitrary state |y⟩
     // Goal: Transform state |x, y⟩ into |x, y ⊕ x₀ ⊕ x₁ ... ⊕ xₙ₋₁⟩ (⊕ is addition modulo 2).
-    operation Oracle_CountBits (x : Qubit[], y : Qubit) : Unit is Adj {        
-        // ...
-
+    operation Oracle_CountBits (x : Qubit[], y : Qubit) : Unit is Adj {      
+        for x_i in x {
+            CNOT(x_i, y);
+        }
     }
     
     
@@ -43,7 +46,9 @@ namespace Quantum.Kata.SimonsAlgorithm {
     // Goal: Transform state |x, y⟩ into |x, y ⊕ f(x)⟩, where f is bitwise right shift function, i.e.,
     // |y ⊕ f(x)⟩ = |y₀, y₁ ⊕ x₀, y₂ ⊕ x₁, ..., yₙ₋₁ ⊕ xₙ₋₂⟩ (⊕ is addition modulo 2).
     operation Oracle_BitwiseRightShift (x : Qubit[], y : Qubit[]) : Unit is Adj {        
-        // ...
+        for i in 1 .. Length(y) - 1 {
+            CNOT(x[i-1], y[i]);
+        }
     }
     
     
@@ -60,7 +65,11 @@ namespace Quantum.Kata.SimonsAlgorithm {
         // You don't need to modify it. Feel free to remove it, this won't cause your code to fail.
         EqualityFactI(Length(x), Length(A), "Arrays x and A should have the same length");
             
-        // ...
+        for i in 0 .. Length(x) - 1 {
+            if (A[i] == 1) {
+                CNOT(x[i], y);
+            }
+        }
     }
     
     
@@ -81,7 +90,9 @@ namespace Quantum.Kata.SimonsAlgorithm {
         EqualityFactI(Length(x), Length(A[0]), "Arrays x and A[0] should have the same length");
         EqualityFactI(Length(y), Length(A), "Arrays y and A should have the same length");
             
-        // ...
+        for i in 0 .. Length(y) - 1 {
+            Oracle_OperatorOutput(x, y[i], A[i]);
+        }
     }
     
     
@@ -95,7 +106,7 @@ namespace Quantum.Kata.SimonsAlgorithm {
     // Goal: create an equal superposition of all basis vectors from |0...0⟩ to |1...1⟩ on query register
     // (i.e. the state (|0...0⟩ + ... + |1...1⟩) / sqrt(2ᴺ)).
     operation SA_StatePrep (query : Qubit[]) : Unit is Adj {        
-        // ...
+        ApplyToEachA(H, query);
     }
     
     
@@ -125,7 +136,18 @@ namespace Quantum.Kata.SimonsAlgorithm {
         // the variable has to be mutable to allow updating it.
         mutable b = [];
         
-        // ...
+        use (query, aux) = (Qubit[N], Qubit[N]);
+        SA_StatePrep(query);
+        Uf(query, aux);
+        Adjoint SA_StatePrep(query);
+        let res = MeasureEachZ(query);
+
+        // The following 2 lines are pretty ugly, but I couldn't find a better way
+        // to cast Result to Int (0 or 1) in Q#
+        let mapper = i -> IsResultOne(i) ? 1 | 0;
+        set b = Mapped(mapper, res);
+
+        Ignore(MeasureEachZ(aux)); // It is necessary to measure all the qubits before the scope ends
 
         return b;
     }
